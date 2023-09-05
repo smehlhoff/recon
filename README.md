@@ -1,6 +1,6 @@
 # recon
 
-Retrieves high density observations from hurricane reconnaissance aircraft and inserts into a Postgres database.
+Retrieves high density observations from hurricane reconnaissance aircraft and inserts them into a Postgres database.
 
 You can read more [here](https://www.nhc.noaa.gov/abouthdobs_2007.shtml) from National Hurricane Center.
 
