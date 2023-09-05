@@ -2,7 +2,9 @@
 
 Retrieves high density observations from hurricane reconnaissance aircraft and inserts into a Postgres database.
 
-You can read more [here](https://www.nhc.noaa.gov/abouthdobs_2007.shtml).
+You can read more [here](https://www.nhc.noaa.gov/abouthdobs_2007.shtml) from National Hurricane Center.
+
+Note: This is a work in progress. See [recon-api](https://github.com/smehlhoff/recon-api) for interacting with the data.
 
 ## Install
 
