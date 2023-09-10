@@ -162,7 +162,7 @@ def insert_hdobs():
                     else:
                         aircraft_geopotential_height = int(int(parts[4]) / 1)
                         aircraft_geopotential_height_ft = round(
-                            float(aircraft_geopotential_height) / 0.3048)
+                            float(aircraft_geopotential_height) * 3.2808)
 
                     if str(parts[5]) == "////":
                         extrapolated_surface_pressure = None
@@ -181,11 +181,12 @@ def insert_hdobs():
                             extrapolated_surface_pressure / 33.8639, 2)
 
                     # change to D-value if aircraft static pressure is lower than 550.0 mb
-                    if aircraft_static_air_pressure < 550.0:
+                    if (aircraft_static_air_pressure is not None and
+                            aircraft_static_air_pressure < 550.0):
                         extrapolated_surface_pressure = None
                         extrapolated_surface_pressure_inhg = None
                         d_value = int("".join(parts_5[1:]))
-                        d_value_ft = round(float(d_value) / 0.3048)
+                        d_value_ft = round(float(d_value) * 3.2808)
                     else:
                         d_value = None
                         d_value_ft = None
