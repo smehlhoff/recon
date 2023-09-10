@@ -67,6 +67,7 @@ def insert_mission(storm_id, hdob):
 
 def insert_high_density_observation(mission_id, hdob):
     new_hdob_observation = HighDensityObservation(
+        file=hdob["file"],
         mission_id=mission_id,
         observation_number=hdob["observation_number"],
         product=hdob["product"],
@@ -90,6 +91,8 @@ def insert_hdobs():
     observations = []
 
     for file in files:
+        hdob["file"] = file
+
         with open(f"{HDOBS_DIR}/{file}", "r") as f:
             lines = f.readlines()
 
@@ -131,6 +134,8 @@ def insert_hdobs():
 
                 if line_num > 3:
                     parts_0 = list(parts[0])
+                    parts_3 = list(parts[3])
+                    parts_5 = list(parts[5])
                     parts_6 = list(parts[6])
                     parts_7 = list(parts[7])
                     parts_8 = list(parts[8])
@@ -140,22 +145,40 @@ def insert_hdobs():
                         aircraft_static_air_pressure = None
                         aircraft_static_air_pressure_inhg = None
                     else:
-                        aircraft_static_air_pressure = float(parts[3]) / 10
-                        aircraft_static_air_pressure_inhg = round(aircraft_static_air_pressure / 33.8639, 2)
+                        # if pressure is equal to or greater than 1000 mb, the leading 1 is dropped
+                        if parts_3[0] == "0":
+                            parts_3.insert(0, "1")
+                            aircraft_static_air_pressure = "".join(parts_3)
+                            aircraft_static_air_pressure = float(aircraft_static_air_pressure) / 10
+                        else:
+                            aircraft_static_air_pressure = float(parts[3]) / 10
+
+                        aircraft_static_air_pressure_inhg = round(
+                            aircraft_static_air_pressure / 33.8639, 2)
 
                     if str(parts[4]) == "/////":
                         aircraft_geopotential_height = None
                         aircraft_geopotential_height_ft = None
                     else:
                         aircraft_geopotential_height = int(int(parts[4]) / 1)
-                        aircraft_geopotential_height_ft = int(float(aircraft_geopotential_height) / 0.3048)
+                        aircraft_geopotential_height_ft = int(
+                            float(aircraft_geopotential_height) / 0.3048)
 
                     if str(parts[5]) == "////":
                         extrapolated_surface_pressure = None
                         extrapolated_surface_pressure_inhg = None
                     else:
-                        extrapolated_surface_pressure = float(parts[5]) / 10
-                        extrapolated_surface_pressure_inhg = round(extrapolated_surface_pressure / 33.8639, 2)
+                        # if pressure is equal to or greater than 1000 mb, the leading 1 is dropped
+                        if parts_5[0] == "0":
+                            parts_5.insert(0, "1")
+                            extrapolated_surface_pressure = "".join(parts_5)
+                            extrapolated_surface_pressure = float(
+                                extrapolated_surface_pressure) / 10
+                        else:
+                            extrapolated_surface_pressure = float(parts[5]) / 10
+
+                        extrapolated_surface_pressure_inhg = round(
+                            extrapolated_surface_pressure / 33.8639, 2)
 
                     if str(parts[6]) == "////":
                         air_temperature = None
@@ -184,8 +207,8 @@ def insert_hdobs():
                         wind_cardinal_direction = None
                     else:
                         wind_direction = int("".join(parts_8[0:3]))
-                        directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W",
-                                      "WNW", "NW", "NNW", "N"]
+                        directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW",
+                                      "SW", "WSW", "W", "WNW", "NW", "NNW", "N"]
                         wind_cardinal_direction = directions[round(float(wind_direction) / 22.5)]
 
                     if str(parts[8]) == "//////":
@@ -207,7 +230,8 @@ def insert_hdobs():
                         sfmr_peak_surface_wind_speed_mph = None
                     else:
                         sfmr_peak_surface_wind_speed = int(parts[10])
-                        sfmr_peak_surface_wind_speed_mph = int(float(sfmr_peak_surface_wind_speed) * 1.151)
+                        sfmr_peak_surface_wind_speed_mph = int(
+                            float(sfmr_peak_surface_wind_speed) * 1.151)
 
                     if str(parts[11]) == "///":
                         sfmr_surface_rain_rate = None
@@ -216,7 +240,7 @@ def insert_hdobs():
                         sfmr_surface_rain_rate = int(parts[11])
                         sfmr_surface_rain_rate_in = round(float(sfmr_surface_rain_rate) / 25.4, 2)
 
-                    first_flag_decoded, second_flag_decoded = quality_control_decoder(parts_12[0], parts_12[1])
+                    first_flag, second_flag = quality_control_decoder(parts_12[0], parts_12[1])
 
                     observations_dict = {
                         "observation_time": parts[0],
@@ -247,8 +271,8 @@ def insert_hdobs():
                         "sfmr_surface_rain_rate": sfmr_surface_rain_rate,
                         "sfmr_surface_rain_rate_in": sfmr_surface_rain_rate_in,
                         "quality_control_flags": "".join(parts_12),
-                        "first_flag_decoded": first_flag_decoded,
-                        "second_flag_decoded": second_flag_decoded
+                        "first_flag_decoded": first_flag,
+                        "second_flag_decoded": second_flag
                     }
 
                     observations.append(observations_dict)
