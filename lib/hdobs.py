@@ -5,7 +5,43 @@ from bs4 import BeautifulSoup
 
 from lib.models import HighDensityObservation, Mission, Observation, Storm, session
 
-hdobs_dir = "./hdobs"
+HDOBS_DIR = "./hdobs"
+
+
+def quality_control_decoder(first_flag, second_flag):
+    match first_flag:
+        case "0":
+            first_flag_decoded = "All parameters of nominal accuracy"
+        case "1":
+            first_flag_decoded = "Lat/lon questionable"
+        case "2":
+            first_flag_decoded = "Geopotential altitude or static pressure questionable"
+        case "3":
+            first_flag_decoded = "Both lat/lon and GA/PS questionable"
+        case _:
+            first_flag_decoded = ""
+
+    match second_flag:
+        case "0":
+            second_flag_decoded = "All parameters of nominal accuracy"
+        case "1":
+            second_flag_decoded = "T or TD questionable"
+        case "2":
+            second_flag_decoded = "Flight-level winds questionable"
+        case "3":
+            second_flag_decoded = "SFMR parameter(s) questionable"
+        case "4":
+            second_flag_decoded = "T/TD and FL winds questionable"
+        case "5":
+            second_flag_decoded = "T/TD and SFMR questionable"
+        case "6":
+            second_flag_decoded = "FL winds and SFMR questionable"
+        case "9":
+            second_flag_decoded = "T/TD, FL winds, and SFMR questionable"
+        case _:
+            second_flag_decoded = ""
+
+    return first_flag_decoded, second_flag_decoded
 
 
 def insert_storm(hdob):
@@ -48,13 +84,13 @@ def insert_observation(high_density_observation_id, hdob):
 
 
 def insert_hdobs():
-    files = os.listdir(hdobs_dir)
+    files = os.listdir(HDOBS_DIR)
 
     hdob = {}
     observations = []
 
     for file in files:
-        with open(f"{hdobs_dir}/{file}", "r") as f:
+        with open(f"{HDOBS_DIR}/{file}", "r") as f:
             lines = f.readlines()
 
         for line_num, line in enumerate(lines):
@@ -67,11 +103,13 @@ def insert_hdobs():
                 if line_num == 2:
                     match parts[0]:
                         case "URNT15":
-                            hdob["ocean_basin"] = "atlantic"
+                            hdob["ocean_basin"] = "Atlantic"
                         case "URPN15":
-                            hdob["ocean_basin"] = "east and central pacific"
+                            hdob["ocean_basin"] = "East and Central Pacific"
                         case "URPA15":
-                            hdob["ocean-basin"] = "west pacific"
+                            hdob["ocean_basin"] = "West Pacific"
+                        case _:
+                            hdob["ocean_basin"] = ""
 
                     hdob["product"] = f"{parts[0]} {parts[1]}"
                     hdob["transmitted"] = parts[2]
@@ -80,38 +118,137 @@ def insert_hdobs():
                     parts_1 = list(parts[1])
 
                     hdob["callsign"] = parts[0]
-
-                    # skip training missions
+                    # handle training missions separately
                     if "".join(parts_1) == "WXWXA":
                         hdob["mission_number"] = ""
                         hdob["storm_number"] = ""
                     else:
                         hdob["mission_number"] = "".join(parts_1[0:2])
                         hdob["storm_number"] = "".join(parts_1[2:4])
-                    hdob["storm_name"] = parts[2].lower()
+                    hdob["storm_name"] = parts[2].title()
                     hdob["observation_number"] = parts[4]
                     hdob["date"] = parts[5]
 
                 if line_num > 3:
                     parts_0 = list(parts[0])
+                    parts_6 = list(parts[6])
+                    parts_7 = list(parts[7])
                     parts_8 = list(parts[8])
+                    parts_12 = list(parts[12])
+
+                    if str(parts[3]) == "////":
+                        aircraft_static_air_pressure = None
+                        aircraft_static_air_pressure_inhg = None
+                    else:
+                        aircraft_static_air_pressure = float(parts[3]) / 10
+                        aircraft_static_air_pressure_inhg = round(aircraft_static_air_pressure / 33.8639, 2)
+
+                    if str(parts[4]) == "/////":
+                        aircraft_geopotential_height = None
+                        aircraft_geopotential_height_ft = None
+                    else:
+                        aircraft_geopotential_height = int(int(parts[4]) / 1)
+                        aircraft_geopotential_height_ft = int(float(aircraft_geopotential_height) / 0.3048)
+
+                    if str(parts[5]) == "////":
+                        extrapolated_surface_pressure = None
+                        extrapolated_surface_pressure_inhg = None
+                    else:
+                        extrapolated_surface_pressure = float(parts[5]) / 10
+                        extrapolated_surface_pressure_inhg = round(extrapolated_surface_pressure / 33.8639, 2)
+
+                    if str(parts[6]) == "////":
+                        air_temperature = None
+                        air_temperature_f = None
+                    else:
+                        if parts_6[0] == "-":
+                            air_temperature = -abs(float("".join(parts_6[1:]))) / 10
+                        else:
+                            air_temperature = float("".join(parts_6[1:])) / 10
+
+                        air_temperature_f = round((air_temperature * 1.8) + 32, 1)
+
+                    if str(parts[7]) == "////":
+                        dew_point = None
+                        dew_point_f = None
+                    else:
+                        if parts_7[0] == "-":
+                            dew_point = -abs(float("".join(parts_7[1:]))) / 10
+                        else:
+                            dew_point = float("".join(parts_7[1:])) / 10
+
+                        dew_point_f = round((dew_point * 1.8) + 32, 1)
+
+                    if str(parts[8]) == "//////":
+                        wind_direction = None
+                        wind_cardinal_direction = None
+                    else:
+                        wind_direction = int("".join(parts_8[0:3]))
+                        directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W",
+                                      "WNW", "NW", "NNW", "N"]
+                        wind_cardinal_direction = directions[round(float(wind_direction) / 22.5)]
+
+                    if str(parts[8]) == "//////":
+                        wind_speed = None
+                        wind_speed_mph = None
+                    else:
+                        wind_speed = int("".join(parts_8[3:]))
+                        wind_speed_mph = int(float(wind_speed) * 1.151)
+
+                    if str(parts[9]) == "///":
+                        peak_wind_speed = None
+                        peak_wind_speed_mph = None
+                    else:
+                        peak_wind_speed = int(parts[9])
+                        peak_wind_speed_mph = int(float(peak_wind_speed) * 1.151)
+
+                    if str(parts[10]) == "///":
+                        sfmr_peak_surface_wind_speed = None
+                        sfmr_peak_surface_wind_speed_mph = None
+                    else:
+                        sfmr_peak_surface_wind_speed = int(parts[10])
+                        sfmr_peak_surface_wind_speed_mph = int(float(sfmr_peak_surface_wind_speed) * 1.151)
+
+                    if str(parts[11]) == "///":
+                        sfmr_surface_rain_rate = None
+                        sfmr_surface_rain_rate_in = None
+                    else:
+                        sfmr_surface_rain_rate = int(parts[11])
+                        sfmr_surface_rain_rate_in = round(float(sfmr_surface_rain_rate) / 25.4, 2)
+
+                    first_flag_decoded, second_flag_decoded = quality_control_decoder(parts_12[0], parts_12[1])
 
                     observations_dict = {
+                        "observation_time": parts[0],
                         "hour": "".join(parts_0[0:2]),
                         "minute": "".join(parts_0[2:4]),
                         "second": "".join(parts_0[4:]),
                         "coordinates": parts[1] + parts[2],
-                        "aircraft_static_air_pressure": parts[3],
-                        "aircraft_geopotential_height": None if str(parts[4]) == "////" else parts[4],
-                        "extrapolated_surface_pressure": None if str(parts[5]) == "////" else parts[5],
-                        "air_temperature": None if str(parts[6]) == "////" else parts[6],
-                        "dew_point": None if str(parts[7]) == "////" else parts[7],
-                        "wind_direction": None if str("".join(parts_8[0:3])) == "////" else "".join(parts_8[0:3]),
-                        "wind_speed": None if str("".join(parts_8[0:3])) == "////" else "".join(parts_8[3:]),
-                        "peak_wind_speed": None if str(parts[9]) == "///" else parts[9],
-                        "sfmr_peak_surface_wind_speed": None if str(parts[10]) == "///" else parts[10],
-                        "sfmr_surface_rate_rate": None if str(parts[11]) == "///" else parts[11],
-                        "quality_control_flags": parts[12]
+                        "latitude": parts[1],
+                        "longitude": parts[2],
+                        "aircraft_static_air_pressure": aircraft_static_air_pressure,
+                        "aircraft_static_air_pressure_inhg": aircraft_static_air_pressure_inhg,
+                        "aircraft_geopotential_height": aircraft_geopotential_height,
+                        "aircraft_geopotential_height_ft": aircraft_geopotential_height_ft,
+                        "extrapolated_surface_pressure": extrapolated_surface_pressure,
+                        "extrapolated_surface_pressure_inhg": extrapolated_surface_pressure_inhg,
+                        "air_temperature": air_temperature,
+                        "air_temperature_f": air_temperature_f,
+                        "dew_point": dew_point,
+                        "dew_point_f": dew_point_f,
+                        "wind_direction": wind_direction,
+                        "wind_cardinal_direction": wind_cardinal_direction,
+                        "wind_speed": wind_speed,
+                        "wind_speed_mph": wind_speed_mph,
+                        "peak_wind_speed": peak_wind_speed,
+                        "peak_wind_speed_mph": peak_wind_speed_mph,
+                        "sfmr_peak_surface_wind_speed": sfmr_peak_surface_wind_speed,
+                        "sfmr_peak_surface_wind_speed_mph": sfmr_peak_surface_wind_speed_mph,
+                        "sfmr_surface_rain_rate": sfmr_surface_rain_rate,
+                        "sfmr_surface_rain_rate_in": sfmr_surface_rain_rate_in,
+                        "quality_control_flags": "".join(parts_12),
+                        "first_flag_decoded": first_flag_decoded,
+                        "second_flag_decoded": second_flag_decoded
                     }
 
                     observations.append(observations_dict)
@@ -184,15 +321,15 @@ def collect_hdobs(db_insert=False):
             if hdob.startswith("AHONT1"):
                 hdobs.append(hdob)
 
-    if not os.path.exists(hdobs_dir):
-        os.makedirs(hdobs_dir)
+    if not os.path.exists(HDOBS_DIR):
+        os.makedirs(HDOBS_DIR)
 
     for hdob in hdobs:
-        if not os.path.exists(f"{hdobs_dir}/{hdob}"):
+        if not os.path.exists(f"{HDOBS_DIR}/{hdob}"):
             response = requests.get(f"{url}/{hdob}")
 
             if response.status_code == 200:
-                with open(f"{hdobs_dir}/{hdob}", "w") as f:
+                with open(f"{HDOBS_DIR}/{hdob}", "w") as f:
                     f.write(response.text)
 
     os.remove("recon.html")
