@@ -202,7 +202,7 @@ def insert_hdobs():
 
                         dew_point_f = round((dew_point * 1.8) + 32, 1)
 
-                    if str(parts[8]) == "//////":
+                    if str(parts[8]) == "//////" or str(parts[8]) == "999":
                         wind_direction = None
                         wind_cardinal_direction = None
                     else:
@@ -211,21 +211,21 @@ def insert_hdobs():
                                       "SW", "WSW", "W", "WNW", "NW", "NNW", "N"]
                         wind_cardinal_direction = directions[round(float(wind_direction) / 22.5)]
 
-                    if str(parts[8]) == "//////":
+                    if str(parts[8]) == "//////" or str(parts[8]) == "999":
                         wind_speed = None
                         wind_speed_mph = None
                     else:
                         wind_speed = int("".join(parts_8[3:]))
                         wind_speed_mph = int(float(wind_speed) * 1.151)
 
-                    if str(parts[9]) == "///":
+                    if str(parts[9]) == "///" or str(parts[9]) == "999":
                         peak_wind_speed = None
                         peak_wind_speed_mph = None
                     else:
                         peak_wind_speed = int(parts[9])
                         peak_wind_speed_mph = int(float(peak_wind_speed) * 1.151)
 
-                    if str(parts[10]) == "///":
+                    if str(parts[10]) == "///" or str(parts[10]) == "999":
                         sfmr_peak_surface_wind_speed = None
                         sfmr_peak_surface_wind_speed_mph = None
                     else:
@@ -233,7 +233,7 @@ def insert_hdobs():
                         sfmr_peak_surface_wind_speed_mph = int(
                             float(sfmr_peak_surface_wind_speed) * 1.151)
 
-                    if str(parts[11]) == "///":
+                    if str(parts[11]) == "///" or str(parts[11]) == "999":
                         sfmr_surface_rain_rate = None
                         sfmr_surface_rain_rate_in = None
                     else:
