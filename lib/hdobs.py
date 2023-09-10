@@ -161,7 +161,7 @@ def insert_hdobs():
                         aircraft_geopotential_height_ft = None
                     else:
                         aircraft_geopotential_height = int(int(parts[4]) / 1)
-                        aircraft_geopotential_height_ft = int(
+                        aircraft_geopotential_height_ft = round(
                             float(aircraft_geopotential_height) / 0.3048)
 
                     if str(parts[5]) == "////":
@@ -179,6 +179,16 @@ def insert_hdobs():
 
                         extrapolated_surface_pressure_inhg = round(
                             extrapolated_surface_pressure / 33.8639, 2)
+
+                    # change to D-value if aircraft static pressure is lower than 550.0 mb
+                    if aircraft_static_air_pressure < 550.0:
+                        extrapolated_surface_pressure = None
+                        extrapolated_surface_pressure_inhg = None
+                        d_value = int("".join(parts_5[1:]))
+                        d_value_ft = round(float(d_value) / 0.3048)
+                    else:
+                        d_value = None
+                        d_value_ft = None
 
                     if str(parts[6]) == "////":
                         air_temperature = None
@@ -216,21 +226,21 @@ def insert_hdobs():
                         wind_speed_mph = None
                     else:
                         wind_speed = int("".join(parts_8[3:]))
-                        wind_speed_mph = int(float(wind_speed) * 1.151)
+                        wind_speed_mph = round(float(wind_speed) * 1.151)
 
                     if str(parts[9]) == "///" or str(parts[9]) == "999":
                         peak_wind_speed = None
                         peak_wind_speed_mph = None
                     else:
                         peak_wind_speed = int(parts[9])
-                        peak_wind_speed_mph = int(float(peak_wind_speed) * 1.151)
+                        peak_wind_speed_mph = round(float(peak_wind_speed) * 1.151)
 
                     if str(parts[10]) == "///" or str(parts[10]) == "999":
                         sfmr_peak_surface_wind_speed = None
                         sfmr_peak_surface_wind_speed_mph = None
                     else:
                         sfmr_peak_surface_wind_speed = int(parts[10])
-                        sfmr_peak_surface_wind_speed_mph = int(
+                        sfmr_peak_surface_wind_speed_mph = round(
                             float(sfmr_peak_surface_wind_speed) * 1.151)
 
                     if str(parts[11]) == "///" or str(parts[11]) == "999":
@@ -256,6 +266,8 @@ def insert_hdobs():
                         "aircraft_geopotential_height_ft": aircraft_geopotential_height_ft,
                         "extrapolated_surface_pressure": extrapolated_surface_pressure,
                         "extrapolated_surface_pressure_inhg": extrapolated_surface_pressure_inhg,
+                        "d_value": d_value,
+                        "d_value_ft": d_value_ft,
                         "air_temperature": air_temperature,
                         "air_temperature_f": air_temperature_f,
                         "dew_point": dew_point,
