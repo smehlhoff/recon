@@ -67,6 +67,7 @@ def insert_mission(storm_id, hdob):
 
 def insert_high_density_observation(mission_id, hdob):
     new_hdob_observation = HighDensityObservation(
+        date=hdob["date"],
         file=hdob["file"],
         mission_id=mission_id,
         observation_number=hdob["observation_number"],
