@@ -133,13 +133,17 @@ def insert_hdobs():
                     hdob["date"] = parts[5]
 
                 if line_num > 3:
-                    parts_0 = list(parts[0])
-                    parts_3 = list(parts[3])
-                    parts_5 = list(parts[5])
-                    parts_6 = list(parts[6])
-                    parts_7 = list(parts[7])
-                    parts_8 = list(parts[8])
-                    parts_12 = list(parts[12])
+                    # handle data format issues
+                    try:
+                        parts_0 = list(parts[0])
+                        parts_3 = list(parts[3])
+                        parts_5 = list(parts[5])
+                        parts_6 = list(parts[6])
+                        parts_7 = list(parts[7])
+                        parts_8 = list(parts[8])
+                        parts_12 = list(parts[12])
+                    except IndexError:
+                        continue
 
                     if str(parts[3]) == "////":
                         aircraft_static_air_pressure = None
