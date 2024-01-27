@@ -2,6 +2,7 @@ import os
 
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 from lib.models import HighDensityObservation, Mission, Observation, Storm, session
 
@@ -342,8 +343,8 @@ def insert_hdobs():
         hdob.clear()
 
 
-def collect_hdobs(db_insert=False):
-    url = "https://www.nhc.noaa.gov/archive/recon/2023/AHONT1"
+def collect_hdobs(year=datetime.now().year, db_insert=False):
+    url = f"https://www.nhc.noaa.gov/archive/recon/{year}/AHONT1"
     response = requests.get(url)
 
     hdobs = []
