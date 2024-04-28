@@ -1,8 +1,8 @@
 import os
+from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
 
 from lib.models import HighDensityObservation, Mission, Observation, Storm, session
 
