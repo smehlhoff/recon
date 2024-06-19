@@ -50,7 +50,7 @@ def insert_storm(hdob):
         ocean_basin=hdob["ocean_basin"],
         name=hdob["storm_name"],
         number=hdob["storm_number"],
-        year=hdob["date"][0:4]
+        year=hdob["date"][0:4],
     )
     session.add(new_storm)
     session.commit()
@@ -58,9 +58,7 @@ def insert_storm(hdob):
 
 def insert_mission(storm_id, hdob):
     new_mission = Mission(
-        callsign=hdob["callsign"],
-        mission_number=hdob["mission_number"],
-        storm_id=storm_id
+        callsign=hdob["callsign"], mission_number=hdob["mission_number"], storm_id=storm_id
     )
     session.add(new_mission)
     session.commit()
@@ -73,7 +71,7 @@ def insert_high_density_observation(mission_id, hdob):
         mission_id=mission_id,
         observation_number=hdob["observation_number"],
         product=hdob["product"],
-        transmitted=hdob["transmitted"]
+        transmitted=hdob["transmitted"],
     )
     session.add(new_hdob_observation)
     session.commit()
@@ -120,16 +118,22 @@ def insert_hdobs():
                     hdob["transmitted"] = parts[2]
 
                 if line_num == 3:
+                    # mission numbers
                     parts_1 = list(parts[1])
 
                     hdob["callsign"] = parts[0]
+
+                    training_missions = ["wxwxa", "wxwxe", "train"]
+
                     # handle training missions separately
-                    if "".join(parts_1) == "WXWXA":
+                    if "".join(parts_1).lower() in training_missions:
                         hdob["mission_number"] = ""
                         hdob["storm_number"] = ""
+                        continue
                     else:
                         hdob["mission_number"] = "".join(parts_1[0:2])
                         hdob["storm_number"] = "".join(parts_1[2:4])
+
                     hdob["storm_name"] = parts[2].title()
                     hdob["observation_number"] = parts[4]
                     hdob["date"] = parts[5]
@@ -160,7 +164,8 @@ def insert_hdobs():
                             aircraft_static_air_pressure = float(parts[3]) / 10
 
                         aircraft_static_air_pressure_inhg = round(
-                            aircraft_static_air_pressure / 33.8639, 2)
+                            aircraft_static_air_pressure / 33.8639, 2
+                        )
 
                     if str(parts[4]) == "/////":
                         aircraft_geopotential_height = None
@@ -168,7 +173,8 @@ def insert_hdobs():
                     else:
                         aircraft_geopotential_height = int(int(parts[4]) / 1)
                         aircraft_geopotential_height_ft = round(
-                            float(aircraft_geopotential_height) * 3.2808)
+                            float(aircraft_geopotential_height) * 3.2808
+                        )
 
                     if str(parts[5]) == "////":
                         extrapolated_surface_pressure = None
@@ -178,17 +184,22 @@ def insert_hdobs():
                         if parts_5[0] == "0":
                             parts_5.insert(0, "1")
                             extrapolated_surface_pressure = "".join(parts_5)
-                            extrapolated_surface_pressure = float(
-                                extrapolated_surface_pressure) / 10
+                            extrapolated_surface_pressure = (
+                                float(extrapolated_surface_pressure) / 10
+                            )
                         else:
                             extrapolated_surface_pressure = float(parts[5]) / 10
 
                         extrapolated_surface_pressure_inhg = round(
-                            extrapolated_surface_pressure / 33.8639, 2)
+                            extrapolated_surface_pressure / 33.8639, 2
+                        )
 
                     # change to D-value if aircraft static pressure is lower than 550.0 mb
-                    if (aircraft_static_air_pressure is not None and
-                            aircraft_static_air_pressure < 550.0):
+                    if (
+                        aircraft_static_air_pressure is not None
+                        and extrapolated_surface_pressure is not None
+                        and aircraft_static_air_pressure < 550.0
+                    ):
                         extrapolated_surface_pressure = None
                         extrapolated_surface_pressure_inhg = None
                         d_value = int("".join(parts_5[1:]))
@@ -224,8 +235,25 @@ def insert_hdobs():
                         wind_cardinal_direction = None
                     else:
                         wind_direction = int("".join(parts_8[0:3]))
-                        directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW",
-                                      "SW", "WSW", "W", "WNW", "NW", "NNW", "N"]
+                        directions = [
+                            "N",
+                            "NNE",
+                            "NE",
+                            "ENE",
+                            "E",
+                            "ESE",
+                            "SE",
+                            "SSE",
+                            "S",
+                            "SSW",
+                            "SW",
+                            "WSW",
+                            "W",
+                            "WNW",
+                            "NW",
+                            "NNW",
+                            "N",
+                        ]
                         wind_cardinal_direction = directions[round(float(wind_direction) / 22.5)]
 
                     if str(parts[8]) == "//////" or str(parts[8]) == "999":
@@ -248,7 +276,8 @@ def insert_hdobs():
                     else:
                         sfmr_peak_surface_wind_speed = int(parts[10])
                         sfmr_peak_surface_wind_speed_mph = round(
-                            float(sfmr_peak_surface_wind_speed) * 1.151)
+                            float(sfmr_peak_surface_wind_speed) * 1.151
+                        )
 
                     if str(parts[11]) == "///" or str(parts[11]) == "999":
                         sfmr_surface_rain_rate = None
@@ -291,7 +320,7 @@ def insert_hdobs():
                         "sfmr_surface_rain_rate_in": sfmr_surface_rain_rate_in,
                         "quality_control_flags": "".join(parts_12),
                         "first_flag_decoded": first_flag,
-                        "second_flag_decoded": second_flag
+                        "second_flag_decoded": second_flag,
                     }
 
                     observations.append(observations_dict)
@@ -307,35 +336,53 @@ def insert_hdobs():
 
             storm_id = session.query(Storm).filter_by(name=hdob["storm_name"]).first().id
 
-            existing_mission = session.query(Mission).filter_by(
-                callsign=hdob["callsign"],
-                mission_number=hdob["mission_number"],
-                storm_id=storm_id
-            ).first()
+            existing_mission = (
+                session.query(Mission)
+                .filter_by(
+                    callsign=hdob["callsign"],
+                    mission_number=hdob["mission_number"],
+                    storm_id=storm_id,
+                )
+                .first()
+            )
 
             if existing_mission is None:
                 insert_mission(storm_id, hdob)
 
-            mission_id = session.query(Mission).filter_by(
-                callsign=hdob["callsign"],
-                mission_number=hdob["mission_number"],
-                storm_id=storm_id
-            ).first().id
+            mission_id = (
+                session.query(Mission)
+                .filter_by(
+                    callsign=hdob["callsign"],
+                    mission_number=hdob["mission_number"],
+                    storm_id=storm_id,
+                )
+                .first()
+                .id
+            )
 
-            existing_high_density_observation = session.query(HighDensityObservation).filter_by(
-                mission_id=mission_id,
-                observation_number=hdob["observation_number"],
-                transmitted=hdob["transmitted"]
-            ).first()
+            existing_high_density_observation = (
+                session.query(HighDensityObservation)
+                .filter_by(
+                    mission_id=mission_id,
+                    observation_number=hdob["observation_number"],
+                    transmitted=hdob["transmitted"],
+                )
+                .first()
+            )
 
             if existing_high_density_observation is None:
                 insert_high_density_observation(mission_id, hdob)
 
-                high_density_observation_id = session.query(HighDensityObservation).filter_by(
-                    mission_id=mission_id,
-                    observation_number=hdob["observation_number"],
-                    transmitted=hdob["transmitted"]
-                ).first().id
+                high_density_observation_id = (
+                    session.query(HighDensityObservation)
+                    .filter_by(
+                        mission_id=mission_id,
+                        observation_number=hdob["observation_number"],
+                        transmitted=hdob["transmitted"],
+                    )
+                    .first()
+                    .id
+                )
 
                 insert_observation(high_density_observation_id, hdob)
 
