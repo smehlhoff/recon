@@ -402,14 +402,14 @@ def collect_hdobs(year=datetime.now().year, db_insert=False):
         with open("recon.html", "w", encoding="utf-8") as f:
             f.write(html)
 
-    with open("recon.html", "r", encoding="utf-8") as f:
-        soup = BeautifulSoup(f.read(), features="html.parser")
+        with open("recon.html", "r", encoding="utf-8") as f:
+            soup = BeautifulSoup(f.read(), features="html.parser")
 
-        for link in soup.find_all(name="a", href=True):
-            hdob = str(link["href"])
+            for link in soup.find_all(name="a", href=True):
+                hdob = str(link["href"])
 
-            if hdob.startswith("AHONT1"):
-                hdobs.append(hdob)
+                if hdob.startswith("AHONT1"):
+                    hdobs.append(hdob)
 
     if not os.path.exists(HDOBS_DIR):
         os.makedirs(HDOBS_DIR)
